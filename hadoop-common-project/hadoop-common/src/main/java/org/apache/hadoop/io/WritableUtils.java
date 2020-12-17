@@ -378,6 +378,8 @@ public final class WritableUtils  {
    * @return the total number of bytes (1 to 9)
    */
   public static int decodeVIntSize(byte value) {
+    //hadoop中，一个字节表示 -112~127
+
     if (value >= -112) {
       return 1;
     } else if (value < -120) {

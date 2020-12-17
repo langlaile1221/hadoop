@@ -48,7 +48,7 @@ public class BlockStoragePolicy implements BlockStoragePolicySpi {
   private final StorageType[] storageTypes;
   /** The fallback storage type for block creation. */
   private final StorageType[] creationFallbacks;
-  /** The fallback storage type for replication. */
+  /** The fallback storage type for replication. *///当前存储类型不可用的时候,退一级所选择使用的存储类型
   private final StorageType[] replicationFallbacks;
   /**
    * Whether the policy is inherited during file creation.
@@ -57,8 +57,8 @@ public class BlockStoragePolicy implements BlockStoragePolicySpi {
   private boolean copyOnCreateFile;
 
   @VisibleForTesting
-  public BlockStoragePolicy(byte id, String name, StorageType[] storageTypes,
-      StorageType[] creationFallbacks, StorageType[] replicationFallbacks) {
+    public BlockStoragePolicy(byte id, String name, StorageType[] storageTypes,
+        StorageType[] creationFallbacks, StorageType[] replicationFallbacks) {
     this(id, name, storageTypes, creationFallbacks, replicationFallbacks,
          false);
   }

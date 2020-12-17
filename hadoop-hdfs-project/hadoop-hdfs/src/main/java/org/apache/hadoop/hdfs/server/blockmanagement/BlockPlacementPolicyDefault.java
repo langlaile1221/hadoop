@@ -767,6 +767,7 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
         LOG.debug("Failed to choose remote rack (location = ~"
             + localMachine.getNetworkLocation() + "), fallback to local rack", e);
       }
+      // 如果失败从所在的机架上选择一个合适的数据节点
       chooseRandom(numOfReplicas-(results.size()-oldNumOfReplicas),
                    localMachine.getNetworkLocation(), excludedNodes, blocksize, 
                    maxReplicasPerRack, results, avoidStaleNodes, storageTypes);

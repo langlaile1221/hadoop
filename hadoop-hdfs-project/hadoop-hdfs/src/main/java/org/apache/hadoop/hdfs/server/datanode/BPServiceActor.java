@@ -516,6 +516,7 @@ class BPServiceActor implements Runnable {
   HeartbeatResponse sendHeartBeat(boolean requestBlockReportLease)
       throws IOException {
     scheduler.scheduleNextHeartbeat();
+    // 获取存储类型情况报告信息
     StorageReport[] reports =
         dn.getFSDataset().getStorageReports(bpos.getBlockPoolId());
     if (LOG.isDebugEnabled()) {
@@ -525,6 +526,7 @@ class BPServiceActor implements Runnable {
     
     final long now = monotonicNow();
     scheduler.updateLastHeartbeatTime(now);
+    // 获取坏磁盘数据信息
     VolumeFailureSummary volumeFailureSummary = dn.getFSDataset()
         .getVolumeFailureSummary();
     int numFailedVolumes = volumeFailureSummary != null ?
@@ -538,7 +540,7 @@ class BPServiceActor implements Runnable {
         outliersReportDue && dn.getDiskMetrics() != null ?
             SlowDiskReports.create(dn.getDiskMetrics().getDiskOutliersStats()) :
             SlowDiskReports.EMPTY_REPORT;
-
+    // 还有DataNode自身的存储容量信息,最后发送给了NameNode
     HeartbeatResponse response = bpNamenode.sendHeartbeat(bpRegistration,
         reports,
         dn.getFSDataset().getCacheCapacity(),

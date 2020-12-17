@@ -78,3 +78,52 @@ public class LongBitFormat implements Serializable {
     return LENGTH;
   }
 }
+class LongFormatTest {
+
+  static int ID_BIT_LENGTH = 4;
+  static enum HeaderFormat {
+    PREFERRED_BLOCK_SIZE(null, 48, 1),
+    REPLICATION(PREFERRED_BLOCK_SIZE.BITS, 12, 1),
+    STORAGE_POLICY_ID(REPLICATION.BITS, ID_BIT_LENGTH,
+        0);
+
+    private final LongBitFormat BITS;
+
+    private HeaderFormat(LongBitFormat previous, int length, long min) {
+      BITS = new LongBitFormat(name(), previous, length, min);
+    }
+
+    static short getReplication(long header) {
+      return (short)REPLICATION.BITS.retrieve(header);
+    }
+
+    static long getPreferredBlockSize(long header) {
+      return PREFERRED_BLOCK_SIZE.BITS.retrieve(header);
+    }
+
+    static byte getStoragePolicyID(long header) {
+      return (byte)STORAGE_POLICY_ID.BITS.retrieve(header);
+    }
+
+    static long toLong(long preferredBlockSize, short replication,
+        byte storagePolicyID) {
+      long h = 0;
+      h = PREFERRED_BLOCK_SIZE.BITS.combine(preferredBlockSize, h);
+      h = REPLICATION.BITS.combine(replication, h);
+      h = STORAGE_POLICY_ID.BITS.combine(storagePolicyID, h);
+      return h;
+    }
+  }
+  public static void main(String[] args) {
+    long blockSize = 512;
+    System.out.println("block size:         " + HeaderFormat.getPreferredBlockSize(blockSize));
+    long replication  = 3L  << 48;
+
+    System.out.println("replication:        " + HeaderFormat.getReplication(replication));
+    long storagePolicyID = 2L << 60;
+    System.out.println("storagePolicyID:    " + HeaderFormat.getStoragePolicyID(storagePolicyID));
+    System.out.println("added value:        "+ (blockSize + replication  +storagePolicyID));
+    System.out.println("get combined value :" + HeaderFormat.toLong(512, (short)3 , (byte)2));
+
+  }
+}

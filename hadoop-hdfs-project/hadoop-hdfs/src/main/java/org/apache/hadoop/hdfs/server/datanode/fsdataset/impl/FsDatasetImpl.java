@@ -327,7 +327,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     // The number of volumes required for operation is the total number
     // of volumes minus the number of failed volumes we can tolerate.
     volFailuresTolerated = datanode.getDnConf().getVolFailuresTolerated();
-
+    //在getStorageLocations中会对存储目录解析，生成StroageTye的List列表
     Collection<StorageLocation> dataLocations = DataNode.getStorageLocations(conf);
     List<VolumeFailureInfo> volumeFailureInfos = getInitialVolumeFailureInfos(
         dataLocations, storage);

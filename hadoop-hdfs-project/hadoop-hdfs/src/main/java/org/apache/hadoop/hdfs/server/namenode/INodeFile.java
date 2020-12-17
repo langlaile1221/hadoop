@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -634,6 +635,7 @@ public class INodeFile extends INodeWithAdditionalFields
     }
     return REPLICATION_POLICY_ID;
   }
+
 
   /**
    * @return true if the file is in the striping layout.

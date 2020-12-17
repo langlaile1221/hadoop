@@ -2814,6 +2814,7 @@ public class DataNode extends ReconfigurableBase
   }
 
   public static List<StorageLocation> getStorageLocations(Configuration conf) {
+    // 获取dfs.datanode.data.dir配置中多个目录地址字符串
     Collection<String> rawLocations =
         conf.getTrimmedStringCollection(DFS_DATANODE_DATA_DIR_KEY);
     List<StorageLocation> locations =
@@ -2822,6 +2823,7 @@ public class DataNode extends ReconfigurableBase
     for(String locationString : rawLocations) {
       final StorageLocation location;
       try {
+        // 解析为对应的StorageLocation
         location = StorageLocation.parse(locationString);
       } catch (IOException | SecurityException ioe) {
         LOG.error("Failed to initialize storage directory {}." +
@@ -2829,6 +2831,7 @@ public class DataNode extends ReconfigurableBase
         // Ignore the exception.
         continue;
       }
+      // 将解析好的StorageLocation加入列表中
       if(checkFileSystemWithConfigured(conf, location)) {
         locations.add(location);
       }

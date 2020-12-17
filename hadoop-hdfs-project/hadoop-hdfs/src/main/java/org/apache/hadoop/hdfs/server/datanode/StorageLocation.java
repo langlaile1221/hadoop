@@ -127,6 +127,7 @@ public class StorageLocation
    */
   public static StorageLocation parse(String rawLocation)
       throws IOException, SecurityException {
+    // 采用正则匹配的方式的方式进行解析
     Matcher matcher = regex.matcher(rawLocation);
     StorageType storageType = StorageType.DEFAULT;
     String location = rawLocation;

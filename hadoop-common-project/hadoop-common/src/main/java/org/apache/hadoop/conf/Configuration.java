@@ -1033,7 +1033,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     restrictSystemProps |= resource.isParserRestricted();
     loadProps(properties, resources.size() - 1, false);
   }
-
+  //避免属性扩展出现死循环，${key1${key2${key1}}}
   private static final int MAX_SUBST = 20;
 
   private static final int SUB_START_IDX = 0;
