@@ -36,8 +36,11 @@ public abstract class INodeWithAdditionalFields extends INode
   // Note: this format is used both in-memory and on-disk.  Changes will be
   // incompatible.
   enum PermissionStatusFormat implements LongBitFormat.Enum {
+    //前16个比特存放模式表示（类似）
     MODE(null, 16),
+    //中间24为存放用户组表示
     GROUP(MODE.BITS, 24),
+    //最后24为存放用户表示
     USER(GROUP.BITS, 24);
 
     final LongBitFormat BITS;
@@ -45,9 +48,11 @@ public abstract class INodeWithAdditionalFields extends INode
     private PermissionStatusFormat(LongBitFormat previous, int length) {
       BITS = new LongBitFormat(name(), previous, length, 0);
     }
-
+    //首先提取最后23个比特的user信息，并通过SerialNumberManager获取用户名
     static String getUser(long permission) {
+      //首先提取最后23个比特的user信息
       final int n = (int)USER.BITS.retrieve(permission);
+      // 并通过SerialNumberManager获取用户名     
       String s = SerialNumberManager.USER.getString(n);
       assert s != null;
       return s;

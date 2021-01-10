@@ -1,0 +1,79 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto2";
+option java_package = "org.apache.hadoop.ipc.protobuf";
+option java_outer_classname = "ZhzTestRpcServiceProtos";
+option java_generic_services = true;
+option java_generate_equals_and_hash = true;
+package hadoop.common;
+
+import "zhztest.proto";
+
+
+/**
+ * A protobuf service for use in tests
+ */
+service ZhzTestProtobufRpcProto {
+  rpc ping(ZhzEmptyRequestProto) returns (ZhzEmptyResponseProto);
+  rpc echo(ZhzEchoRequestProto) returns (ZhzEchoResponseProto);
+  rpc error(ZhzEmptyRequestProto) returns (ZhzEmptyResponseProto);
+  rpc error2(ZhzEmptyRequestProto) returns (ZhzEmptyResponseProto);
+  rpc slowPing(ZhzSlowPingRequestProto) returns (ZhzEmptyResponseProto);
+  rpc echo2(ZhzEchoRequestProto2) returns (ZhzEchoResponseProto2);
+  rpc add(ZhzAddRequestProto) returns (ZhzAddResponseProto);
+  rpc add2(ZhzAddRequestProto2) returns (ZhzAddResponseProto);
+  rpc testServerGet(ZhzEmptyRequestProto) returns (ZhzEmptyResponseProto);
+  rpc exchange(ZhzExchangeRequestProto) returns (ZhzExchangeResponseProto);
+  rpc sleep(ZhzSleepRequestProto) returns (ZhzEmptyResponseProto);
+  rpc lockAndSleep(ZhzSleepRequestProto) returns (ZhzEmptyResponseProto);
+  rpc getAuthMethod(ZhzEmptyRequestProto) returns (ZhzAuthMethodResponseProto);
+  rpc getAuthUser(ZhzEmptyRequestProto) returns (ZhzUserResponseProto);
+  rpc echoPostponed(ZhzEchoRequestProto) returns (ZhzEchoResponseProto);
+  rpc sendPostponed(ZhzEmptyRequestProto) returns (ZhzEmptyResponseProto);
+  rpc getCurrentUser(ZhzEmptyRequestProto) returns (ZhzUserResponseProto);
+  rpc getServerRemoteUser(ZhzEmptyRequestProto) returns (ZhzUserResponseProto);
+}
+
+service ZhzTestProtobufRpc2Proto {
+  rpc ping2(ZhzEmptyRequestProto) returns (ZhzEmptyResponseProto);
+  rpc echo2(ZhzEchoRequestProto) returns (ZhzEchoResponseProto);
+  rpc sleep(ZhzSleepRequestProto) returns (ZhzSleepResponseProto);
+}
+
+service ZhzOldProtobufRpcProto {
+  rpc ping(ZhzEmptyRequestProto) returns (ZhzEmptyResponseProto);
+  rpc echo(ZhzEmptyRequestProto) returns (ZhzEmptyResponseProto);
+}
+
+service ZhzNewProtobufRpcProto {
+  rpc ping(ZhzEmptyRequestProto) returns (ZhzEmptyResponseProto);
+  rpc echo(ZhzOptRequestProto) returns (ZhzOptResponseProto);
+}
+
+service ZhzNewerProtobufRpcProto {
+  rpc ping(ZhzEmptyRequestProto) returns (ZhzEmptyResponseProto);
+  rpc echo(ZhzEmptyRequestProto) returns (ZhzEmptyResponseProto);
+}
+
+service ZhzCustomProto {
+  rpc ping(ZhzEmptyRequestProto) returns (ZhzEmptyResponseProto);
+}
+
+service ZhzTestProtobufRpcHandoffProto {
+  rpc sleep(ZhzSleepRequestProto2) returns (ZhzSleepResponseProto2);
+}

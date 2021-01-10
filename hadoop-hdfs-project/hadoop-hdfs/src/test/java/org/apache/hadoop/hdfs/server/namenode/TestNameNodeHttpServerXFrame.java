@@ -17,6 +17,8 @@
 
 package org.apache.hadoop.hdfs.server.namenode;
 
+import java.io.InputStream;
+import java.nio.charset.Charset;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
@@ -115,5 +117,39 @@ public class TestNameNodeHttpServerXFrame {
         xfoHeader != null);
     Assert.assertTrue(xfoHeader.endsWith(HttpServer2.XFrameOption
         .SAMEORIGIN.toString()));
+  }
+
+
+  @Test
+  public void testNamenodeWebHdfsMethods() throws IOException {
+
+    Configuration conf = new HdfsConfiguration();
+    conf.set(DFSConfigKeys.DFS_NAMENODE_HTTPS_ADDRESS_KEY, "localhost:0");
+    InetSocketAddress httpAddress = InetSocketAddress.createUnresolved("localhost", 0);
+    
+    NameNodeHttpServer server = null;
+
+    server = new NameNodeHttpServer(conf, null, httpAddress);
+    server.start();
+   
+    FileSystem.setDefaultUri(conf, "hdfs://localhost:0");
+    
+    URL url = URI.create("http://" + httpAddress.getHostName()
+        + ":" + httpAddress.getPort()).toURL();
+    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+    conn.connect();
+    InputStream inputStream=conn.getInputStream();
+    byte[] data=new byte[1024];
+    StringBuffer sb=new StringBuffer();
+    int length=0;
+    while ((length=inputStream.read(data))!=-1){
+      String s=new String(data, Charset.forName("utf-8"));
+      sb.append(s);
+    }
+    
+    System.out.println(sb.toString());
+    inputStream.close();
+    conn.disconnect();
+    ;
   }
 }

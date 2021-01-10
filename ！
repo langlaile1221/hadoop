@@ -1,0 +1,18 @@
+ HDFS-15739. Add missing Javadoc for a param in method chooseRandomWithStorageType
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# Date:      Fri Dec 18 23:37:35 2020 +0800
+#
+# On branch HDFS-15739
+# Your branch and 'origin/HDFS-15739' have diverged,
+# and have 1 and 1 different commits each, respectively.
+#   (use "git pull" to merge the remote branch into yours)
+#
+# Changes to be committed:
+#	modified:   hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/net/DFSNetworkTopology.java
+#
+# Untracked files:
+#	hadoop-common-project/hadoop-common/.debug.log.crc
+#

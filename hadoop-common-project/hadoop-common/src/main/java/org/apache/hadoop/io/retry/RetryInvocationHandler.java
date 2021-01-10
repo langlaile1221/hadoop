@@ -102,7 +102,7 @@ public class RetryInvocationHandler<T> implements RpcInvocationHandler {
             // If interrupted, do not retry.
             throw e;
           }
-
+          //根据重试策略进行重试
           retryInfo = retryInvocationHandler.handleException(
               method, callId, retryPolicy, counters, failoverCount, e);
           return processWaitTimeAndRetryInfo();
@@ -277,6 +277,7 @@ public class RetryInvocationHandler<T> implements RpcInvocationHandler {
           ((MultiException) e).getExceptions().values()
           : Collections.singletonList(e);
       for (Exception exception : exceptions) {
+        //是否已经超出了最大重试次数 RetryPolicies中其中一个类，e.g. FailoverOnNetworkExceptionRetry 
         final RetryAction a = policy.shouldRetry(exception,
             counters.retries, counters.failovers, idempotentOrAtMostOnce);
         if (a.action != RetryAction.RetryDecision.FAIL) {

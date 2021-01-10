@@ -57,7 +57,7 @@ public class TestDFSNetworkTopology {
   private DatanodeDescriptor[] dataNodes;
 
   @Rule
-  public Timeout testTimeout = new Timeout(30000);
+  public Timeout testTimeout = new Timeout(30000000);
 
   @Before
   public void setupDatanodes() {

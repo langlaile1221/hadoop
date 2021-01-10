@@ -1336,6 +1336,83 @@ public class TestWebHDFS {
     verifyEquals(new BlockLocation[] {}, locationArray5);
   }
 
+  @Test
+  public void testWebHdfs() throws Exception{
+    final Configuration conf = WebHdfsTestUtil.createConf();
+    final int offset = 42;
+    final int length = 512;
+    final Path path = new Path("/foo");
+    byte[] contents = new byte[1024];
+    RANDOM.nextBytes(contents);
+    cluster = new MiniDFSCluster.Builder(conf).numDataNodes(1).build();
+    final WebHdfsFileSystem fs = WebHdfsTestUtil.getWebHdfsFileSystem(conf,
+        WebHdfsConstants.WEBHDFS_SCHEME);
+    try (OutputStream os = fs.create(path)) {
+      os.write(contents);
+    }
+    BlockLocation[] locations = fs.getFileBlockLocations(path, offset, length);
+
+    // Query webhdfs REST API to get block locations
+    InetSocketAddress addr = cluster.getNameNode().getHttpAddress();
+
+    // Case 1
+    // URL without length or offset parameters
+    URL url1 = new URL("http", addr.getHostString(), addr.getPort(),
+        WebHdfsFileSystem.PATH_PREFIX + "/foo?op=GETFILEBLOCKLOCATIONS");
+
+    String response1 = getResponse(url1, "GET");
+    // Parse BlockLocation array from json output using object mapper
+    BlockLocation[] locationArray1 = toBlockLocationArray(response1);
+
+    // Verify the result from rest call is same as file system api
+    verifyEquals(locations, locationArray1);
+
+    // Case 2
+    // URL contains length and offset parameters
+    URL url2 = new URL("http", addr.getHostString(), addr.getPort(),
+        WebHdfsFileSystem.PATH_PREFIX + "/foo?op=GETFILEBLOCKLOCATIONS"
+            + "&length=" + length + "&offset=" + offset);
+
+    String response2 = getResponse(url2, "GET");
+    BlockLocation[] locationArray2 = toBlockLocationArray(response2);
+
+    verifyEquals(locations, locationArray2);
+
+    // Case 3
+    // URL contains length parameter but without offset parameters
+    URL url3 = new URL("http", addr.getHostString(), addr.getPort(),
+        WebHdfsFileSystem.PATH_PREFIX + "/foo?op=GETFILEBLOCKLOCATIONS"
+            + "&length=" + length);
+
+    String response3 = getResponse(url3, "GET");
+    BlockLocation[] locationArray3 = toBlockLocationArray(response3);
+
+    verifyEquals(locations, locationArray3);
+
+    // Case 4
+    // URL contains offset parameter but without length parameter
+    URL url4 = new URL("http", addr.getHostString(), addr.getPort(),
+        WebHdfsFileSystem.PATH_PREFIX + "/foo?op=GETFILEBLOCKLOCATIONS"
+            + "&offset=" + offset);
+
+    String response4 = getResponse(url4, "GET");
+    BlockLocation[] locationArray4 = toBlockLocationArray(response4);
+
+    verifyEquals(locations, locationArray4);
+
+    // Case 5
+    // URL specifies offset exceeds the file length
+    URL url5 = new URL("http", addr.getHostString(), addr.getPort(),
+        WebHdfsFileSystem.PATH_PREFIX + "/foo?op=GETFILEBLOCKLOCATIONS"
+            + "&offset=1200");
+
+    String response5 = getResponse(url5, "GET");
+    BlockLocation[] locationArray5 = toBlockLocationArray(response5);
+
+    // Expected an empty array of BlockLocation
+    verifyEquals(new BlockLocation[] {}, locationArray5);
+  }
+
   private BlockLocation[] toBlockLocationArray(String json)
       throws IOException {
     ObjectMapper mapper = new ObjectMapper();

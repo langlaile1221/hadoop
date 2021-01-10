@@ -79,7 +79,8 @@ import org.mockito.Mockito;
 
 import org.apache.hadoop.thirdparty.com.google.common.collect.ImmutableList;
 
-public class TestINodeFile {
+public class 
+TestINodeFile {
   // Re-enable symlinks for tests, see HADOOP-10020 and HADOOP-10052
   static {
     FileSystem.enableSymlinks();

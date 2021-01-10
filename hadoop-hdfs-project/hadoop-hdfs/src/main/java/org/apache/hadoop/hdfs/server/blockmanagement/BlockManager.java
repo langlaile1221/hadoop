@@ -89,6 +89,7 @@ import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.BlockUCState;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.ReplicaState;
 import org.apache.hadoop.hdfs.server.namenode.CachedBlock;
 import org.apache.hadoop.hdfs.server.namenode.INode.BlocksMapUpdateInfo;
+import org.apache.hadoop.hdfs.server.namenode.INodeFile;
 import org.apache.hadoop.hdfs.server.namenode.INodesInPath;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.server.namenode.Namesystem;
@@ -338,11 +339,14 @@ public class BlockManager implements BlockStatsMXBean {
   private final BlockReportProcessingThread blockReportThread;
 
   /**
+   * 损坏的数据块副本集合
    * Store blocks {@literal ->} datanodedescriptor(s) map of corrupt replicas.
    */
   final CorruptReplicasMap corruptReplicas = new CorruptReplicasMap();
 
   /**
+   * 保存等待删除的数据块副本，等待删除的副本来自corruptReplicas和excessReplicateMap这两个集合，加入这个队列中的数据块
+   * 副本会由namenode通过名字节点指令向对应的datanode下发删除命令
    * Blocks to be invalidated.
    * For a striped block to invalidate, we should track its individual internal
    * blocks.
@@ -362,6 +366,7 @@ public class BlockManager implements BlockStatsMXBean {
   private final ArrayList<Block> rescannedMisreplicatedBlocks;
 
   /**
+   * 保存多余的数据块副本，当管理员降低HDFS文件的副本系数时会产生多余的数据块副本
    * Maps a StorageID to the set of blocks that are "extra" for this
    * DataNode. We'll eventually remove these extras.
    */
@@ -369,6 +374,7 @@ public class BlockManager implements BlockStatsMXBean {
       new ExcessRedundancyMap();
 
   /**
+   * 
    * Store set of Blocks that need to be replicated 1 or more times.
    * We also store pending reconstruction-orders.
    */
@@ -1981,6 +1987,7 @@ public class BlockManager implements BlockStatsMXBean {
         }
       }
         // Choose the blocks to be reconstructed
+      //选择需要进行重建的副本集合
       blocksToReconstruct = neededReconstruction
           .chooseLowRedundancyBlocks(blocksToProcess, reset);
     } finally {
@@ -2005,10 +2012,16 @@ public class BlockManager implements BlockStatsMXBean {
     // Step 1: categorize at-risk blocks into replication and EC tasks
     namesystem.writeLock();
     try {
+      // Store set of Blocks that need to be replicated 1 or more times.
+      //  We also store pending reconstruction-orders
       synchronized (neededReconstruction) {
         for (int priority = 0; priority < blocksToReconstruct
             .size(); priority++) {
           for (BlockInfo block : blocksToReconstruct.get(priority)) {
+            //1、选择源节点
+            //2、选择目标节点
+            //3、进行复制操作
+            //这是第一步
             BlockReconstructionWork rw = scheduleReconstruction(block,
                 priority);
             if (rw != null) {
@@ -2881,11 +2894,18 @@ public class BlockManager implements BlockStatsMXBean {
     // Normal case:
     // Modify the (block-->datanode) map, according to the difference
     // between the old and new block report.
-    //
+    //上报副本与namenode内存中记录的数据块有相同的时间戳及长度，那么将上报副本添加到toAdd队列中，对于toAdd队列中的元素，调用addStoredBlock（）方法将副本添加到namenode内存中，
     Collection<BlockInfoToAdd> toAdd = new ArrayList<>();
+    //副本在namenode内存中的datanodeStorageInfo对象上存在，但是块汇报时并没有上报该副本，那么副本添加到toRemove队列中。
+    // 对于toRemove队列中的元素，调用removeStoredBlock（）方法将数据从namenode内存中删除
     Collection<BlockInfo> toRemove = new HashSet<>();
+    //blockManage的blocksMao字段中没有保存上报副本的信息，那么将上报副本添加到toInvalidate
+    //队列中，后续调用addToInvalidates()方法将副本加入BlockManager。invalidateBlocks队列中
     Collection<Block> toInvalidate = new ArrayList<>();
+    //上报副本的时间戳或者文件长度不正常，那么将上报副本添加到corruptReplicas队列中。后续调用markBlockAsCorrupt()方法处理
     Collection<BlockToMarkCorrupt> toCorrupt = new ArrayList<>();
+    //如果上报副本对应的数据块处于构建状态，则调用addStoredBlockUnserConstruction（）方法够着一个ReplicateUnderConstruction对象，
+    //然后将对象添加对应BlockInfoUnderConstruction对象的replicas'队列中
     Collection<StatefulBlockInfo> toUC = new ArrayList<>();
 
     boolean sorted = false;
@@ -3030,6 +3050,7 @@ public class BlockManager implements BlockStatsMXBean {
 
       // If block is corrupt, mark it and continue to next block.
       BlockUCState ucState = storedBlock.getBlockUCState();
+      // 判断当前块是否损坏的数据块（corrupt）
       BlockToMarkCorrupt c = checkReplicaCorrupt(
           iblk, reportedState, storedBlock, ucState,
           storageInfo.getDatanodeDescriptor());
@@ -3040,11 +3061,12 @@ public class BlockManager implements BlockStatsMXBean {
           queueReportedBlock(storageInfo, iblk, reportedState,
               QUEUE_REASON_CORRUPT_STATE);
         } else {
+          //将损坏的节点放入到invalidateBlocks队列中
           markBlockAsCorrupt(c, storageInfo, storageInfo.getDatanodeDescriptor());
         }
         continue;
       }
-      
+      //如果当前队列是处于构建状态，那么将这个副本加入对应的构建中副本队列中
       // If block is under construction, add this replica to its list
       if (isBlockUnderConstruction(storedBlock, ucState, reportedState)) {
         storedBlock.getUnderConstructionFeature()
@@ -3060,6 +3082,7 @@ public class BlockManager implements BlockStatsMXBean {
         //and fall through to next clause
       }      
       //add replica if appropriate
+      //对于正常的副本，快速加入内存中
       if (reportedState == ReplicaState.FINALIZED) {
         addStoredBlockImmediate(storedBlock, iblk, storageInfo);
       }
@@ -3434,6 +3457,7 @@ public class BlockManager implements BlockStatsMXBean {
     AddBlockResult result = storageInfo.addBlockInitial(storedBlock, reported);
 
     // Now check for completion of blocks and safe block count
+    //namenode中block 有四种状态complete、under_construction、under_recover、commited
     int numCurrentReplica = countLiveNodes(storedBlock);
     if (storedBlock.getBlockUCState() == BlockUCState.COMMITTED
         && hasMinStorage(storedBlock, numCurrentReplica)) {
@@ -4865,7 +4889,7 @@ public class BlockManager implements BlockStatsMXBean {
   BlockCollection getBlockCollection(BlockInfo b) {
     return namesystem.getBlockCollection(b.getBlockCollectionId());
   }
-
+  
   public int numCorruptReplicas(Block block) {
     return corruptReplicas.numCorruptReplicas(block);
   }
@@ -4891,7 +4915,7 @@ public class BlockManager implements BlockStatsMXBean {
     return neededReconstruction.iterator(
         LowRedundancyBlocks.QUEUE_WITH_CORRUPT_BLOCKS);
   }
-
+ 
   /**
    * Get the replicas which are corrupt for a given block.
    */
@@ -4933,7 +4957,9 @@ public class BlockManager implements BlockStatsMXBean {
         try {
           // Process recovery work only when active NN is out of safe mode.
           if (isPopulatingReplQueues()) {
+            // 触发数据库的复制和删除
             computeDatanodeWork();
+            //将pendingReplications队列中超时的副本重新加入neededReplication队列中
             processPendingReconstructions();
             rescanPostponedMisreplicatedBlocks();
             lastRedundancyCycleTS.set(Time.monotonicNow());
@@ -5060,13 +5086,17 @@ public class BlockManager implements BlockStatsMXBean {
     if (namesystem.isInSafeMode()) {
       return 0;
     }
-
+    //获取集群中所有有效的datanode的数量
     final int numlive = heartbeatManager.getLiveDatanodeCount();
+    //计算出进行赋值的数据块数量，blocksReplWorkMultiplier：由配置项dfs.namenode.replication.work.multiplier.per.iteration,
+    //默认是2，
     final int blocksToProcess = numlive
         * this.blocksReplWorkMultiplier;
+    //计算出进行删除操作的datanode数量，由配置项dfs.namenode.invalidate.work.pct.per.iteration配置
+    //默认是32%
     final int nodesToProcess = (int) Math.ceil(numlive
         * this.blocksInvalidateWorkPct);
-
+    //计算出需要进行备份的副本
     int workFound = this.computeBlockReconstructionWork(blocksToProcess);
 
     // Update counters
@@ -5077,6 +5107,7 @@ public class BlockManager implements BlockStatsMXBean {
     } finally {
       namesystem.writeUnlock();
     }
+    //选择待删除的节点
     workFound += this.computeInvalidateWork(nodesToProcess);
     return workFound;
   }

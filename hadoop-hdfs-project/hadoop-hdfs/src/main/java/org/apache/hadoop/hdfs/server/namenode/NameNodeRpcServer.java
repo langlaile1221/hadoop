@@ -280,16 +280,17 @@ public class NameNodeRpcServer implements NamenodeProtocols {
     int handlerCount = 
       conf.getInt(DFS_NAMENODE_HANDLER_COUNT_KEY, 
                   DFS_NAMENODE_HANDLER_COUNT_DEFAULT);
-
+    //设置rpc引擎为ProtobufRpcEngine2
     RPC.setProtocolEngine(conf, ClientNamenodeProtocolPB.class,
         ProtobufRpcEngine2.class);
-
+    //构造ClientNamenodeProtocolServerSideTranslatorPB对象，用于适配ClientProtocolPB到ClientProtocol接口的转换
     ClientNamenodeProtocolServerSideTranslatorPB 
        clientProtocolServerTranslator = 
          new ClientNamenodeProtocolServerSideTranslatorPB(this);
+     //构造 BlockingService对象，用于将Server提取出的请求前传到ClientNamenodeProtocolServerSideTranslatorPB clientProtocolServerTranslator
      BlockingService clientNNPbService = ClientNamenodeProtocol.
          newReflectiveBlockingService(clientProtocolServerTranslator);
-
+    //初始化datanodeProtocolServerSideTranslatorPB
     int maxDataLength = conf.getInt(IPC_MAXIMUM_DATA_LENGTH,
         IPC_MAXIMUM_DATA_LENGTH_DEFAULT);
     DatanodeProtocolServerSideTranslatorPB dnProtoPbTranslator = 
@@ -346,7 +347,7 @@ public class NameNodeRpcServer implements NamenodeProtocols {
         new TraceAdminProtocolServerSideTranslatorPB(this);
     BlockingService traceAdminService = TraceAdminService
         .newReflectiveBlockingService(traceAdminXlator);
-
+    //初始化serviceRpcServer，DFS_NAMENODE_SERVICE_RPC_ADDRESS_KEY = "dfs.namenode.servicerpc-address"; DFS_NAMENODE_RPC_PORT_DEFAULT = 8020;
     InetSocketAddress serviceRpcAddr = nn.getServiceRpcServerAddress(conf);
     if (serviceRpcAddr != null) {
       String bindHost = nn.getServiceRpcServerBindHost(conf);
@@ -371,6 +372,7 @@ public class NameNodeRpcServer implements NamenodeProtocols {
           .build();
 
       // Add all the RPC protocols that the namenode implements
+      //注册NamenodeRpcServer实现的所有接口
       DFSUtil.addPBProtocol(conf, HAServiceProtocolPB.class, haPbService,
           serviceRpcServer);
       DFSUtil.addPBProtocol(conf, ReconfigurationProtocolPB.class,

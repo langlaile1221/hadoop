@@ -71,15 +71,20 @@ public class TestLightWeightGSet {
     LightWeightGSet<TestElement, TestElement> set =
         new LightWeightGSet<TestElement, TestElement>(16);
     for (Integer i : list) {
+      System.out.print(i + "\t");
       set.put(new TestElement(i));
     }
+    System.out.println();
+    System.out.println(set.size);
     for (Iterator<TestElement> iter = set.iterator();
         iter.hasNext(); ) {
-      iter.next();
+      TestElement next = iter.next();
+      System.out.print(next.val + "\t");
       iter.remove();
     }
     Assert.assertEquals(0, set.size());
   }
+
 
   @Test(timeout=60000)
   public void testRemoveSomeViaIterator() {

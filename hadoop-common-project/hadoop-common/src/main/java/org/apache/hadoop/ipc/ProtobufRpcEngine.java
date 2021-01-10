@@ -496,7 +496,9 @@ public class ProtobufRpcEngine implements RpcEngine {
       public Writable call(RPC.Server server, String connectionProtocolName,
           Writable writableRequest, long receiveTime) throws Exception {
         RpcProtobufRequest request = (RpcProtobufRequest) writableRequest;
+        //获取rpc调用头
         RequestHeaderProto rpcRequest = request.getRequestHeader();
+        // 获取调用的接口名、方法名、版本号
         String methodName = rpcRequest.getMethodName();
 
         /** 
@@ -521,9 +523,10 @@ public class ProtobufRpcEngine implements RpcEngine {
         if (server.verbose)
           LOG.info("Call: connectionProtocolName=" + connectionProtocolName + 
               ", method=" + methodName);
-        
+        //获取调用的方法描述符以及调用参数
         ProtoClassProtoImpl protocolImpl = getProtocolImpl(server, 
                               declaringClassProtoName, clientVersion);
+        // 在实现类上调用callBlockingMethod方法，级联适配调用到NameNOdeRpcServer
         BlockingService service = (BlockingService) protocolImpl.protocolImpl;
         MethodDescriptor methodDescriptor = service.getDescriptorForType()
             .findMethodByName(methodName);

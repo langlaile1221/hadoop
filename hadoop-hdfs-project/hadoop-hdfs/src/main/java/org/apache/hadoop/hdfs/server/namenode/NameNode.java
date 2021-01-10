@@ -730,7 +730,7 @@ public class NameNode extends ReconfigurableBase implements
 
     UserGroupInformation.setConfiguration(conf);
     loginAsNameNodeUser(conf);
-
+    //初始化指标
     NameNode.initMetrics(conf, this.getRole());
     StartupProgressMetrics.register(startupProgress);
 
@@ -754,14 +754,14 @@ public class NameNode extends ReconfigurableBase implements
       gcTimeMonitor.start();
       metrics.getJvmMetrics().setGcTimeMonitor(gcTimeMonitor);
     }
-
+    //创建httpserver
     if (NamenodeRole.NAMENODE == role) {
       startHttpServer(conf);
     }
 
     loadNamesystem(conf);
     startAliasMapServerIfNecessary(conf);
-
+    //创建rpcServer
     rpcServer = createRpcServer(conf);
 
     initReconfigurableBackoffKey();
@@ -1015,6 +1015,7 @@ public class NameNode extends ReconfigurableBase implements
     this.haContext = createHAContext();
     try {
       initializeGenericKeys(conf, nsId, namenodeId);
+      //初始化nodenode，创建NameNOdeRpcServer
       initialize(getConf());
       state.prepareToEnterState(haContext);
       try {
@@ -1822,6 +1823,7 @@ public class NameNode extends ReconfigurableBase implements
 
     try {
       StringUtils.startupShutdownMessage(NameNode.class, argv, LOG);
+      //创建namenode
       NameNode namenode = createNameNode(argv, null);
       if (namenode != null) {
         namenode.join();

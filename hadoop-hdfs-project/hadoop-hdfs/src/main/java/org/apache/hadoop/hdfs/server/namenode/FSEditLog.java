@@ -126,7 +126,7 @@ public class FSEditLog implements LogsPurgeable {
   /**
    * State machine for edit log.
    * 
-   * In a non-HA setup:
+   * In a non-HA setup: UNINITIALIZED -> BETWEEN_LOG_SEGMENTS -> IN_SEGMENT -> closed
    * 
    * The log starts in UNINITIALIZED state upon construction. Once it's
    * initialized, it is usually in IN_SEGMENT state, indicating that edits may
@@ -134,7 +134,7 @@ public class FSEditLog implements LogsPurgeable {
    * briefly enters the BETWEEN_LOG_SEGMENTS state, indicating that the previous
    * segment has been closed, but the new one has not yet been opened.
    * 
-   * In an HA setup:
+   * In an HA setup: UNINITIALIZED->open_for_reading 
    * 
    * The log starts in UNINITIALIZED state upon construction. Once it's
    * initialized, it sits in the OPEN_FOR_READING state the entire time that the
@@ -257,11 +257,12 @@ public class FSEditLog implements LogsPurgeable {
   public synchronized void initJournalsForWrite() {
     Preconditions.checkState(state == State.UNINITIALIZED ||
         state == State.CLOSED, "Unexpected state: %s", state);
-    
+    //初始化joutnalsSet集合，存放存储路径对应的JouralManager
     initJournals(this.editsDirs);
+    //状态从 UNINITIALIZED -> BETWEEN_LOG_SEGMENTS
     state = State.BETWEEN_LOG_SEGMENTS;
   }
-  
+  //HA模式下初始化fsEditlog
   public synchronized void initSharedJournalsForRead() {
     if (state == State.OPEN_FOR_READING) {
       LOG.warn("Initializing shared journals for READ, already open for READ",
@@ -319,10 +320,11 @@ public class FSEditLog implements LogsPurgeable {
   synchronized void openForWrite(int layoutVersion) throws IOException {
     Preconditions.checkState(state == State.BETWEEN_LOG_SEGMENTS,
         "Bad state: %s", state);
-
+    //返回最后一个写入log的transactionId+1,zuowei ci caozuo de transactionId
     long segmentTxId = getLastWrittenTxId() + 1;
     // Safety check: we should never start a segment if there are
     // newer txids readable.
+    //判断有没有包含这个新的segmentTxid的editlog文件，如果有抛出异常
     List<EditLogInputStream> streams = new ArrayList<EditLogInputStream>();
     journalSet.selectInputStreams(streams, segmentTxId, true, false);
     if (!streams.isEmpty()) {

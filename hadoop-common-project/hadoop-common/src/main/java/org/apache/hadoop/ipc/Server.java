@@ -1236,7 +1236,7 @@ public abstract class Server {
         readers[i] = reader;
         reader.start();
       }
-
+      //注解监听事件
       // Register accepts on the server socket with the selector.
       acceptChannel.register(selector, SelectionKey.OP_ACCEPT);
       this.setName("IPC Server listener on " + port);
@@ -1412,7 +1412,7 @@ public abstract class Server {
         channel.configureBlocking(false);
         channel.socket().setTcpNoDelay(tcpNoDelay);
         channel.socket().setKeepAlive(true);
-        
+        //轮询获取一个reader
         Reader reader = getReader();
         Connection c = connectionManager.register(channel,
             this.listenPort, this.isOnAuxiliaryPort);
@@ -1424,6 +1424,8 @@ public abstract class Server {
           connectionManager.droppedConnections.getAndIncrement();
           continue;
         }
+        //添加connection    Connection connection = new Connection(channel, Time.now(),
+        //           ingressPort, isOnAuxiliaryPort);
         key.attach(c);  // so closeCurrentConnection can get the object
         reader.addConnection(c);
       }
@@ -1438,6 +1440,7 @@ public abstract class Server {
       c.setLastContact(Time.now());
       
       try {
+        //读取数据并处理
         count = c.readAndProcess();
       } catch (InterruptedException ieo) {
         LOG.info(Thread.currentThread().getName() + ": readAndProcess caught InterruptedException", ieo);
@@ -2325,6 +2328,7 @@ public abstract class Server {
           ByteBuffer requestData = data;
           data = null; // null out in case processOneRpc throws.
           boolean isHeaderRead = connectionContextRead;
+          //处理请求数据
           processOneRpc(requestData);
           // the last rpc-request we processed could have simply been the
           // connectionContext; if so continue to read the first RPC.
@@ -2582,6 +2586,7 @@ public abstract class Server {
               RpcErrorCodeProto.FATAL_INVALID_RPC_HEADER,
               "Connection context not established");
         } else {
+          //从输入流中解析出完整的请求对象（包括请求元数据以及请求参数），然后根据rpc请求头信息构造Call对象，最后将call对象放入callQueue队列中保存。
           processRpcRequest(header, buffer);
         }
       } catch (RpcServerException rse) {
@@ -2886,6 +2891,9 @@ public abstract class Server {
       throws IOException, InterruptedException {
     try {
       // queue the call, may be blocked if blocking is true.
+      //blockingQueue中add方法，将指定的元素插入到此队列中（如果立即可行且不会违反容量限制），在成功时返回 true，如果当前没有可用空间，则抛出 IllegalStateException。
+      //将指定元素插入到此队列的尾部（如果立即可行且不会超出此队列的容量），在成功时返回 true，如果此队列已满，则返回 false。当使用有容量限制的队列时，此方法通常要优于 add 方法，后者可能无法插入元素，而只是抛出一个异常。
+      //将指定元素插入到此队列的尾部，如有必要，则等待空间变得可用。
       if (blocking) {
         callQueue.put(call);
       } else {

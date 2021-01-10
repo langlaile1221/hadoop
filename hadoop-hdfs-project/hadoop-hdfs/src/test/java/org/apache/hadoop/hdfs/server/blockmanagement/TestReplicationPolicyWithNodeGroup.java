@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import java.util.stream.Collectors;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.StorageType;
@@ -931,5 +932,25 @@ public class TestReplicationPolicyWithNodeGroup extends BaseReplicationPolicyTes
       assertTrue("Target should be a part of Expected Targets",
           expectedTargets.contains(targets[i].getDatanodeDescriptor()));
     }
+  }
+
+  @Test
+  public void testMap() {
+    // Map<String, Set<String>> routerNameSpaceMapNsSet = new HashMap<>();
+    // Set<String> set = routerNameSpaceMapNsSet.get("test");
+    // System.out.println(set.contains("test"));
+    List<String> list = new ArrayList<>();
+    //定义三个用户对象
+    //添加用户到集合中
+    list.add("user1");
+    list.add("user2");
+
+    //在集合中查询用户名为huxiansen的集合
+    List<String> userList = list.stream().filter(user -> "user1".equals(user)).collect(Collectors.toList());
+    //在集合中查询出第一个用户密码为123456的用户
+    //Optional<User> user = list.stream().filter(userTemp -> "123456".equals(userTemp.getPassword())).findFirst();​
+    System.out.println(list);
+    System.out.println(userList);
+    
   }
 }

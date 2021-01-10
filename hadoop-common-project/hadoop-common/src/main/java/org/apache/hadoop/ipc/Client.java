@@ -436,6 +436,7 @@ public class Client implements AutoCloseable {
     private byte[] pingRequest; // ping message
 
     // currently active calls
+    //一个connection对象对应一个Server的Socket连接，在这个Server上的所有RPC调用是可以共用这个Connection对象的，
     private Hashtable<Integer, Call> calls = new Hashtable<Integer, Call>();
     private AtomicLong lastActivity = new AtomicLong();// last I/O activity time
     private AtomicBoolean shouldCloseConnection = new AtomicBoolean();  // indicate if the connection is closed
@@ -791,7 +792,9 @@ public class Client implements AutoCloseable {
     }
 
     
-    /** Connect to the server and set up the I/O streams. It then sends
+    /** 
+     * 与远程服务器并建立IO流外
+     * Connect to the server and set up the I/O streams. It then sends
      * a header to the server and starts
      * the connection thread that waits for responses.
      */
@@ -1045,7 +1048,9 @@ public class Client implements AutoCloseable {
      * Return true if it is time to read a response; false otherwise.
      */
     private synchronized boolean waitForWork() {
+      //如果队列是空、需要关闭的连接不为空、正在运行的也不为空
       if (calls.isEmpty() && !shouldCloseConnection.get()  && running.get())  {
+        //计算还需要等待的时间
         long timeout = maxIdleTime-
               (Time.now()-lastActivity.get());
         if (timeout>0) {
@@ -1054,7 +1059,7 @@ public class Client implements AutoCloseable {
           } catch (InterruptedException e) {}
         }
       }
-      
+      //等待足够时间后如果没有返回，则返回false
       if (!calls.isEmpty() && !shouldCloseConnection.get() && running.get()) {
         return true;
       } else if (shouldCloseConnection.get()) {
@@ -1095,6 +1100,7 @@ public class Client implements AutoCloseable {
 
       try {
         while (waitForWork()) {//wait here for work - read or close connection
+          //接受rpc请求
           receiveRpcResponse();
         }
       } catch (Throwable t) {
@@ -1210,9 +1216,11 @@ public class Client implements AutoCloseable {
           LOG.debug(getName() + " got value #" + callId);
 
         RpcStatusProto status = header.getStatus();
+        //如果调用成功
         if (status == RpcStatusProto.SUCCESS) {
           Writable value = packet.newInstance(valueClass, conf);
           final Call call = calls.remove(callId);
+          //设置返回，并唤醒call ，在call(RPC.RpcKind rpcKind,Writable rpcRequest,ConnnectionId remoteId,int serviceClass,AtomicBoolean fallbackToSimpleAuth))方法中的 call.await()
           call.setRpcResponse(value);
           if (call.alignmentContext != null) {
             call.alignmentContext.receiveResponseState(header);
@@ -1222,6 +1230,7 @@ public class Client implements AutoCloseable {
         if (packet.remaining() > 0) {
           throw new RpcClientException("RPC response length mismatch");
         }
+        //取出异常并构造异常
         if (status != RpcStatusProto.SUCCESS) { // Rpc Request failed
           final String exceptionClassName = header.hasExceptionClassName() ?
                 header.getExceptionClassName() : 
@@ -1458,14 +1467,17 @@ public class Client implements AutoCloseable {
       ConnectionId remoteId, int serviceClass,
       AtomicBoolean fallbackToSimpleAuth, AlignmentContext alignmentContext)
       throws IOException {
+    //构造call对象
     final Call call = createCall(rpcKind, rpcRequest);
     call.setAlignmentContext(alignmentContext);
+    //构造Connection对象
     final Connection connection = getConnection(remoteId, call, serviceClass,
         fallbackToSimpleAuth);
 
     try {
       checkAsyncCall();
       try {
+        //发送rpc请求
         connection.sendRpcRequest(call);                 // send the rpc request
       } catch (RejectedExecutionException e) {
         throw new IOException("connection has been closed", e);
@@ -1516,6 +1528,7 @@ public class Client implements AutoCloseable {
       ASYNC_RPC_RESPONSE.set(asyncGet);
       return null;
     } else {
+      //处理返回结果
       return getRpcResponse(call, connection, -1, null);
     }
   }

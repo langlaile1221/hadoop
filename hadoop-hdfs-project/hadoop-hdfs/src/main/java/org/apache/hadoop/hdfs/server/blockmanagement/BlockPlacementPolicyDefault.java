@@ -457,6 +457,7 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
     LOG.trace("storageTypes={}", storageTypes);
 
     try {
+      // 如果numOfReplicas或requiredStorageTypes大小为0,则抛出异常
       if ((numOfReplicas = requiredStorageTypes.size()) == 0) {
         throw new NotEnoughReplicasException(
             "All required storage types are unavailable: "
@@ -528,35 +529,44 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
                                  EnumMap<StorageType, Integer> storageTypes)
                                  throws NotEnoughReplicasException {
     final int numOfResults = results.size();
-    if (numOfResults == 0) {
+    if (numOfResults == 0) { // 如果已选择的目标节点数量为0,则表示3副本一个都还没开始选,首先从选本地节点开始
       DatanodeStorageInfo storageInfo = chooseLocalStorage(writer,
           excludedNodes, blocksize, maxNodesPerRack, results, avoidStaleNodes,
           storageTypes, true);
 
       writer = (storageInfo != null) ? storageInfo.getDatanodeDescriptor()
                                      : null;
-
+      // 如果此时目标需求完成的副本数为降为0,代表选择目标完成,返回第一个节点writer
       if (--numOfReplicas == 0) {
         return writer;
       }
     }
+    // 取出result列表第一个节点
     final DatanodeDescriptor dn0 = results.get(0).getDatanodeDescriptor();
     if (numOfResults <= 1) {
+      // 前面的过程已经完成首个本地节点的选择,此时进行不同机架的节点选择
       chooseRemoteRack(1, dn0, excludedNodes, blocksize, maxNodesPerRack,
           results, avoidStaleNodes, storageTypes);
+      // 如果此时目标需求完成的副本数为降为0,代表选择目标完成,返回第一个节点writer
       if (--numOfReplicas == 0) {
         return writer;
       }
     }
+    // 如果经过前面的处理,节点选择数在2个以内,需要选取第3个副本
     if (numOfResults <= 2) {
+      // 取出result列表第二个节点
       final DatanodeDescriptor dn1 = results.get(1).getDatanodeDescriptor();
+      // 如果dn0,dn1所在同机架,
       if (clusterMap.isOnSameRack(dn0, dn1)) {
+        // 则选择1个不同于dn0,dn1所在机架的副本位置
         chooseRemoteRack(1, dn0, excludedNodes, blocksize, maxNodesPerRack,
             results, avoidStaleNodes, storageTypes);
       } else if (newBlock){
+        // 如果是新的block块,则选取1个于dn1所在同机架的节点位置
         chooseLocalRack(dn1, excludedNodes, blocksize, maxNodesPerRack,
             results, avoidStaleNodes, storageTypes);
       } else {
+        // 否则选取于writer同机架的位置
         chooseLocalRack(writer, excludedNodes, blocksize, maxNodesPerRack,
             results, avoidStaleNodes, storageTypes);
       }
