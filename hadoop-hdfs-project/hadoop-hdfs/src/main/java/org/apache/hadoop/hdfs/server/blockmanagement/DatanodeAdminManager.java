@@ -174,8 +174,10 @@ public class DatanodeAdminManager {
    */
   @VisibleForTesting
   public void startDecommission(DatanodeDescriptor node) {
+    //判断当前节点不为撤销相关状态
     if (!node.isDecommissionInProgress() && !node.isDecommissioned()) {
       // Update DN stats maintained by HeartbeatManager
+      //设置DatanodeDescriptor。adminState状态
       hbManager.startDecommission(node);
       // hbManager.startDecommission will set dead node to decommissioned.
       if (node.isDecommissionInProgress()) {

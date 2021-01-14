@@ -1829,6 +1829,7 @@ public class NameNode extends ReconfigurableBase implements
         namenode.join();
       }
     } catch (Throwable e) {
+      e.printStackTrace();
       LOG.error("Failed to start namenode.", e);
       terminate(1, e);
     }

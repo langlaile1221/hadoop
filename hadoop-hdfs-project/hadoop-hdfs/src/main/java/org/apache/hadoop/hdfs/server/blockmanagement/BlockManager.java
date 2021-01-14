@@ -3842,8 +3842,11 @@ public class BlockManager implements BlockStatsMXBean {
       return MisReplicationResult.UNDER_CONSTRUCTION;
     }
     // calculate current redundancy
+    //数据块期望的副本数量
     short expectedRedundancy = getExpectedRedundancyNum(block);
+    //获取当前数据块的状态
     NumberReplicas num = countNodes(block);
+    //数据块有效的副本数量
     final int numCurrentReplica = num.liveReplicas();
     // add to low redundancy queue if need to be
     if (isNeededReconstruction(block, num)) {

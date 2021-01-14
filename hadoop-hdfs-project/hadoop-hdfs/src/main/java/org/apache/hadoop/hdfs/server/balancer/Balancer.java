@@ -223,10 +223,14 @@ public class Balancer {
   private final boolean sortTopNodes;
 
   // all data node lists
+  //过载的datanode信息
   private final Collection<Source> overUtilized = new LinkedList<Source>();
+  //大于阈值的datanode信息
   private final Collection<Source> aboveAvgUtilized = new LinkedList<Source>();
+  //地域阈值的datanode信息
   private final Collection<StorageGroup> belowAvgUtilized
       = new LinkedList<StorageGroup>();
+  //空载的datanode信息
   private final Collection<StorageGroup> underUtilized
       = new LinkedList<StorageGroup>();
 
@@ -391,6 +395,7 @@ public class Balancer {
       final DDatanode dn = dispatcher.newDatanode(r.getDatanodeInfo());
       final boolean isSource = Util.isIncluded(sourceNodes, dn.getDatanodeInfo());
       for(StorageType t : StorageType.getMovableTypes()) {
+        //利用率
         final Double utilization = policy.getUtilization(r, t);
         if (utilization == null) { // datanode does not have such storage type
           continue;
@@ -411,6 +416,7 @@ public class Balancer {
             getRemaining(r, t), utilizationDiff, maxSizeToMove);
 
         final StorageGroup g;
+        //利用率大于平均值
         if (utilizationDiff > 0) {
           final Source s = dn.addSource(t, maxSize2Move, dispatcher);
           if (thresholdDiff <= 0) { // within threshold
@@ -422,7 +428,9 @@ public class Balancer {
           }
           g = s;
         } else {
+          //利用率小于平均值
           g = dn.addTarget(t, maxSize2Move);
+          //abs(（利用率-平均值）)< threshold
           if (thresholdDiff <= 0) { // within threshold
             belowAvgUtilized.add(g);
           } else {
