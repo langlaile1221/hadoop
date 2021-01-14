@@ -1147,8 +1147,15 @@ public final class HttpServer2 implements FilterContainer {
             + "web resource dir:" + e.getMessage());
       }
     } else {
-      resourceUrl =
-          getClass().getClassLoader().getResource("webapps/" + appName);
+      try {
+        resourceUrl = new File(
+            (new File(getClass().getResource("/").getPath()).getParent() + "/webapps/"))
+            .toURI().toURL();
+      } catch (MalformedURLException e) {
+        e.printStackTrace();
+      }
+      // resourceUrl =
+      //     getClass().getClassLoader().getResource("webapps/" + appName);
 
       if (resourceUrl == null) {
         throw new FileNotFoundException("webapps/" + appName +

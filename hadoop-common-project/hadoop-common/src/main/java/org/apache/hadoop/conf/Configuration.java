@@ -3082,6 +3082,8 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     if (resource instanceof URL) {                  // an URL resource
       reader  = (XMLStreamReader2)parse((URL)resource, isRestricted);
     } else if (resource instanceof String) {        // a CLASSPATH resource
+      // 默认的配置文件路径
+      // Users/zhanghuazong/IdeaProjects/hadoop/hadoop-common-project/hadoop-common/target/classes/core-default.xml
       URL url = getResource((String)resource);
       reader = (XMLStreamReader2)parse(url, isRestricted);
     } else if (resource instanceof Path) {          // a file resource
