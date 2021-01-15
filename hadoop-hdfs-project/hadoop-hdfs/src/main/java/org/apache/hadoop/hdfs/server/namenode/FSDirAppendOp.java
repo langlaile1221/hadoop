@@ -93,19 +93,23 @@ final class FSDirAppendOp {
       // Verify that the destination does not exist as a directory already
       final INode inode = iip.getLastINode();
       final String path = iip.getPath();
+      //检查目标文件在HDFS中是不是一个目录
       if (inode != null && inode.isDirectory()) {
         throw new FileAlreadyExistsException("Cannot append to directory "
             + path + "; already exists as a directory.");
       }
+      //检查权限
       if (fsd.isPermissionEnabled()) {
         fsd.checkPathAccess(pc, iip, FsAction.WRITE);
       }
-
+      //检查目标文件是否存在
       if (inode == null) {
         throw new FileNotFoundException(
             "Failed to append to non-existent file " + path + " for client "
                 + clientMachine);
       }
+      // 可能会通过removeLeaseInternal（）检查租约，
+      //更新命名空间中的Inode
       final INodeFile file = INodeFile.valueOf(inode, path, true);
 
       if (file.isStriped() && !newBlock) {
@@ -122,6 +126,7 @@ final class FSDirAppendOp {
             "Cannot append to lazy persist file " + path);
       }
       // Opening an existing file for append - may need to recover lease.
+      //在打开一个已有的文件前，首先条用recoverLeaseInternal()检查租约
       fsn.recoverLeaseInternal(RecoverLeaseOp.APPEND_FILE, iip, path, holder,
           clientMachine, false);
 
@@ -139,6 +144,7 @@ final class FSDirAppendOp {
               + path + " is not sufficiently replicated yet.");
         }
       }
+      //获取文件最后一个未写满的数据块
       lb = prepareFileForAppend(fsn, iip, holder, clientMachine, newBlock,
           true, logRetryCache);
     } catch (IOException ie) {
@@ -194,6 +200,7 @@ final class FSDirAppendOp {
     LocatedBlock ret = null;
     if (!newBlock) {
       FSDirectory fsd = fsn.getFSDirectory();
+      //返回最后一个未写满的数据块，并增加ucFeature
       ret = fsd.getBlockManager().convertLastBlockToUnderConstruction(file, 0);
       if (ret != null && delta != null) {
         Preconditions.checkState(delta.getStorageSpace() >= 0, "appending to"

@@ -330,9 +330,12 @@ public abstract class BlockInfo extends Block
           + block.getBlockId() + ", expected id = " + getBlockId());
     }
     Preconditions.checkState(!isComplete());
+    //更改当前数据块的状态为COMMITED
     uc.commit();
+    //更新当前数据块的长度
     this.setNumBytes(block.getNumBytes());
     // Sort out invalid replicas.
+    //更新当前数据块时间戳
     return setGenerationStampAndVerifyReplicas(block.getGenerationStamp());
   }
 }

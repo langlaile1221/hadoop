@@ -2648,6 +2648,15 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
     return status;
   }
 
+  /**
+   * 判断src路径在目录树中是否只想一个已经存在的目录或文件，如果是抛出异常
+   * 检查权限，在目标文件的父目录上必须有些权限，如果overwrite参数为true，则在目标文件上有写权限
+   * createParent标识位为false时，检查目标文件的父目录及祖先目录是否存在
+   * 如果目标文件不存在切create标识位为false，或者目标文件存在切overwrite参数为false时，则抛出异常
+   * 如果覆盖写文件（overwirte参数为true)，则调用FSDirectory.delte()从文件系统目录树中删除这个HDFS文件，之后调用removePathAndBlocks方法删除租约，从InodeMap中删除INode,从NameeNode和DataNode上删除数据块
+   * 在目标文件路径上创建一个InodeFileUnderConstruction对象并插入目录树，之后在租约管理器中添加租约
+   * 
+   */
   private HdfsFileStatus startFileInt(String src,
       PermissionStatus permissions, String holder, String clientMachine,
       EnumSet<CreateFlag> flag, boolean createParent, short replication,
@@ -2694,7 +2703,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot create file" + src);
-
+      //如果目标文件src在目录树中已经存在，并且是一个目录，则抛出异常
       iip = FSDirWriteFileOp.resolvePathForStartFile(
           dir, pc, src, flag, createParent);
 
@@ -2978,7 +2987,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
     final String operationName = "getAdditionalBlock";
     NameNode.stateChangeLog.debug("BLOCK* getAdditionalBlock: {}  inodeId {}" +
         " for {}", src, fileId, clientName);
-
+    // 如果是重试请求，并且可以将上一次分配的数据块返回，则保存到onRetryBlock中
     LocatedBlock[] onRetryBlock = new LocatedBlock[1];
     FSDirWriteFileOp.ValidateAddBlockResult r;
     checkOperation(OperationCategory.READ);
@@ -2987,6 +2996,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
     readLock();
     try {
       checkOperation(OperationCategory.READ);
+      //分析当前请求状态
       r = FSDirWriteFileOp.validateAddBlock(this, pc, src, fileId, clientName,
                                             previous, onRetryBlock);
     } finally {
@@ -2998,7 +3008,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
       // This is a retry. Just return the last block.
       return onRetryBlock[0];
     }
-
+    //2.分配数据节点
     DatanodeStorageInfo[] targets = FSDirWriteFileOp.chooseTargetForNewBlock(
         blockManager, src, excludedNodes, favoredNodes, flags, r);
 
@@ -3007,6 +3017,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
     LocatedBlock lb;
     try {
       checkOperation(OperationCategory.WRITE);
+      //创建新的数据块
       lb = FSDirWriteFileOp.storeAllocatedBlock(
           this, src, fileId, clientName, previous, targets);
     } finally {
@@ -3852,7 +3863,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
     pendingFile.toCompleteFile(now(),
         allowCommittedBlock? numCommittedAllowed: 0,
         blockManager.getMinReplication());
-
+    // 去除租约
     leaseManager.removeLease(uc.getClientName(), pendingFile);
 
     // close file and persist block allocations for this file

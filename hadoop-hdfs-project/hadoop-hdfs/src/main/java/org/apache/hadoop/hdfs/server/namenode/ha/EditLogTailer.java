@@ -84,18 +84,20 @@ public class EditLogTailer {
       "dfs.ha.tail-edits.max-txns-per-lock";
   public static final long DFS_HA_TAILEDITS_MAX_TXNS_PER_LOCK_DEFAULT =
       Long.MAX_VALUE;
-
+  // 编辑日志跟踪线程
   private final EditLogTailerThread tailerThread;
-  
+  // hdfs 配置信息Configuration
   private final Configuration conf;
   private final FSNamesystem namesystem;
   private final Iterator<RemoteNameNodeInfo> nnLookup;
+  // 文件系统编辑日志FSeditLog实例editlog
   private FSEditLog editLog;
-
+  // active namenode地址IntetSocketAddress
   private RemoteNameNodeInfo currentNN;
 
   /**
    * The last transaction ID at which an edit log roll was initiated.
+   * 一次编辑日志滚动开始时的最新事物ID
    */
   private long lastRollTriggerTxId = HdfsServerConstants.INVALID_TXID;
   
@@ -107,11 +109,13 @@ public class EditLogTailer {
   /**
    * The last time we successfully loaded a non-zero number of edits from the
    * shared directory.
+   * standy namenode 加载的最高事物ID
    */
   private long lastLoadTimeMs;
 
   /**
    * The last time we triggered a edit log roll on active namenode.
+   * 最后一次我们从共享目录成功加载一个非零编辑的时间
    */
   private long lastRollTimeMs;
 
@@ -119,6 +123,7 @@ public class EditLogTailer {
    * How often the Standby should roll edit logs. Since the Standby only reads
    * from finalized log segments, the Standby will only be as up-to-date as how
    * often the logs are rolled.
+   * StandBy NameNode滚动编辑日志的时间间隔。
    */
   private final long logRollPeriodMs;
 
@@ -176,11 +181,13 @@ public class EditLogTailer {
     this.tailerThread = new EditLogTailerThread();
     this.conf = conf;
     this.namesystem = namesystem;
+    //从namesystem中获取当前时间
     this.editLog = namesystem.getEditLog();
-    
+    // 最新加载edit log时间lastLoadTimestamp初始化为当前时间
     lastLoadTimeMs = monotonicNow();
     lastRollTimeMs = monotonicNow();
-
+    // StandBy NameNode滚动编辑日志的时间间隔logRollPeriodMs
+    // 取参数dfs.ha.log-roll.period，参数未配置默认为2min
     logRollPeriodMs = conf.getTimeDuration(
         DFSConfigKeys.DFS_HA_LOGROLL_PERIOD_KEY,
         DFSConfigKeys.DFS_HA_LOGROLL_PERIOD_DEFAULT,
@@ -188,6 +195,7 @@ public class EditLogTailer {
     List<RemoteNameNodeInfo> nns = Collections.emptyList();
     if (logRollPeriodMs >= 0) {
       try {
+        //初始化activie namenode地址aciveAddr
         nns = RemoteNameNodeInfo.getRemoteNameNodes(conf);
       } catch (IOException e) {
         throw new IllegalArgumentException("Remote NameNodes not correctly configured!", e);
@@ -208,7 +216,9 @@ public class EditLogTailer {
       LOG.info("Not going to trigger log rolls on active node because " +
           DFSConfigKeys.DFS_HA_LOGROLL_PERIOD_KEY + " is negative.");
     }
-    
+    // StandBy NameNode检查是否存在可以读取的新的最终日志段的时间间隔sleepTimeMs
+    // 取参数dfs.ha.tail-edits.period，参数未配置默认为1min
+
     sleepTimeMs = conf.getTimeDuration(
         DFSConfigKeys.DFS_HA_TAILEDITS_PERIOD_KEY,
         DFSConfigKeys.DFS_HA_TAILEDITS_PERIOD_DEFAULT,
@@ -338,6 +348,7 @@ public class EditLogTailer {
       Collection<EditLogInputStream> streams;
       long startTime = Time.monotonicNow();
       try {
+        // 从编辑日志editLog中获取编辑日志输入流集合streams，获取的输入流为最新事务ID加1之后的数据
         streams = editLog.selectInputStreams(lastTxnId + 1, 0,
             null, inProgressOk, true);
       } catch (IOException ioe) {
@@ -360,6 +371,9 @@ public class EditLogTailer {
       // disk are ignored.
       long editsLoaded = 0;
       try {
+        // 调用文件系统镜像FSImage实例image的loadEdits()，
+        // 利用编辑日志输入流集合streams，加载编辑日志至目标namesystem中的文件系统镜像FSImage，
+        // 并获得编辑日志加载的大小editsLoaded
         editsLoaded = image.loadEdits(
             streams, namesystem, maxTxnsPerLock, null, null);
       } catch (EditLogInputException elie) {

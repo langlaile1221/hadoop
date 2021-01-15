@@ -1129,7 +1129,7 @@ public class BlockManager implements BlockStatsMXBean {
       throw new IOException("Commit or complete block " + commitBlock +
           ", whereas it is under recovery.");
     }
-    
+    // 提交数据块
     final boolean committed = commitBlock(lastBlock, commitBlock);
     if (committed && lastBlock.isStriped()) {
       // update scheduled size for DatanodeStorages that do not store any
@@ -1275,20 +1275,23 @@ public class BlockManager implements BlockStatsMXBean {
   public LocatedBlock convertLastBlockToUnderConstruction(
       BlockCollection bc, long bytesToRemove) throws IOException {
     BlockInfo lastBlock = bc.getLastBlock();
+    //如果最后一个数据块写满了，或者这个文件是一个刚刚创建的空文件，则返回null
     if (lastBlock == null ||
        bc.getPreferredBlockSize() == lastBlock.getNumBytes() - bytesToRemove) {
       return null;
     }
     assert lastBlock == getStoredBlock(lastBlock) :
       "last block of the file is not in blocksMap";
-
+    //获取数据块的dataNode信息
     DatanodeStorageInfo[] targets = getStorages(lastBlock);
 
     // convert the last block to under construction. note no block replacement
     // is happening
+    //将最后一个数据亏啊状态更新为构建状态
     bc.convertLastBlockToUC(lastBlock, targets);
 
     // Remove block from reconstruction queue.
+    //从复制队列中删除这个数据块相关的所有请求
     NumberReplicas replicas = countNodes(lastBlock);
     neededReconstruction.remove(lastBlock, replicas.liveReplicas(),
         replicas.readOnlyReplicas(),
@@ -1301,7 +1304,7 @@ public class BlockManager implements BlockStatsMXBean {
       locations.toArray(removedBlockTargets);
       DatanodeStorageInfo.decrementBlocksScheduled(removedBlockTargets);
     }
-
+    //从删除队列中删除这个数据块相关的所有请求
     // remove this block from the list of pending blocks to be deleted. 
     for (DatanodeStorageInfo storage : targets) {
       final Block b = getBlockOnStorage(lastBlock, storage);

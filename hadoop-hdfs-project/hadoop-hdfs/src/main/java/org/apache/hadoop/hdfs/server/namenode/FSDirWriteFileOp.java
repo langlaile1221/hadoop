@@ -168,6 +168,7 @@ class FSDirWriteFileOp {
     final BlockType blockType;
 
     INodesInPath iip = fsn.dir.resolvePath(pc, src, fileId);
+    // 分析当前状态
     FileState fileState = analyzeFileState(fsn, iip, fileId, clientName,
                                            previous, onRetryBlock);
     if (onRetryBlock[0] != null && onRetryBlock[0].getLocations().length > 0) {
@@ -330,11 +331,13 @@ class FSDirWriteFileOp {
             " already exists as a directory");
       }
       // Verifies it's indeed a file and perms allow overwrite
+      //检查权限，在父母路上的必须有写权限，如果是覆盖操作，则在目标文件上有写权限
       INodeFile.valueOf(inode, src);
       if (dir.isPermissionEnabled() && flag.contains(CreateFlag.OVERWRITE)) {
         dir.checkPathAccess(pc, iip, FsAction.WRITE);
       }
     } else {
+      //crateParent为false时，检查目标文件的父目录以及祖先目录是否存在。
       if (!createParent) {
         dir.verifyParentDir(iip);
       }
@@ -375,6 +378,7 @@ class FSDirWriteFileOp {
       if (overwrite) {
         List<INode> toRemoveINodes = new ChunkedArrayList<>();
         List<Long> toRemoveUCFiles = new ChunkedArrayList<>();
+        //如果覆盖想IE，首先删除文件和租约
         long ret = FSDirDeleteOp.delete(fsd, iip, toRemoveBlocks,
                                         toRemoveINodes, toRemoveUCFiles, now());
         if (ret >= 0) {
@@ -392,9 +396,11 @@ class FSDirWriteFileOp {
     }
     fsn.checkFsObjectLimit();
     INodeFile newNode = null;
+    //级联创建parent目录
     INodesInPath parent =
         FSDirMkdirOp.createAncestorDirectories(fsd, iip, permissions);
     if (parent != null) {
+      //创建文件
       iip = addFile(fsd, parent, iip.getLastLocalName(), permissions,
           replication, blockSize, holder, clientMachine, shouldReplicate,
           ecPolicyName, storagePolicy);
@@ -403,6 +409,7 @@ class FSDirWriteFileOp {
     if (newNode == null) {
       throw new IOException("Unable to add " + src +  " to namespace");
     }
+    //添加租约
     fsn.leaseManager.addLease(
         newNode.getFileUnderConstructionFeature().getClientName(),
         newNode.getId());
@@ -410,7 +417,9 @@ class FSDirWriteFileOp {
       FSDirEncryptionZoneOp.setFileEncryptionInfo(fsd, iip, feInfo,
           XAttrSetFlag.CREATE);
     }
+    //设置inode的存储策略
     setNewINodeStoragePolicy(fsd.getBlockManager(), iip, isLazyPersist);
+    //记录editlog
     fsd.getEditLog().logOpenFile(src, newNode, overwrite, logRetryEntry);
     if (NameNode.stateChangeLog.isDebugEnabled()) {
       NameNode.stateChangeLog.debug("DIR* NameSystem.startFile: added " +
@@ -637,6 +646,8 @@ class FSDirWriteFileOp {
       //    We run this analysis again in Part II where case 4 is impossible.
 
       BlockInfo penultimateBlock = file.getPenultimateBlock();
+      // previousBlock==null, 也就是addBlock方法并未携带最后一个数据库啊IDE信息，这种情况下可能client调用clientProtocol.append()方法申请
+      //追加写文件，而文件的最后一个数据块正好写满
       if (previous == null &&
           lastBlockInFile != null &&
           lastBlockInFile.getNumBytes() >= file.getPreferredBlockSize() &&
@@ -649,6 +660,7 @@ class FSDirWriteFileOp {
                src + " lastBlock=" + lastBlockInFile);
         }
       } else if (Block.matchingIdAndGenStamp(penultimateBlock, previousBlock)) {
+        // previousBlock 和倒数第二块如果匹配，则说明namenode已经成功分配块，但是未正确返回给客户端
         if (lastBlockInFile.getNumBytes() != 0) {
           throw new IOException(
               "Request looked like a retry to allocate block " +
@@ -724,19 +736,21 @@ class FSDirWriteFileOp {
     }
     // Check the state of the penultimate block. It should be completed
     // before attempting to complete the last one.
+    // 检查文件的倒数第二个数据块的状态是否为COMPPLETED
     if (!fsn.checkFileProgress(src, pendingFile, false)) {
       return false;
     }
 
     // commit the last block and complete it if it has minimum replicas
+    // 提交最后一个数据块，如果该数据块的副本数大于1，则将状态转换为COMPLETED
     fsn.commitOrCompleteLastBlock(pendingFile, iip, last);
-
+    // 检查文件的所有数据块是否为COMPLETED
     if (!fsn.checkFileProgress(src, pendingFile, true)) {
       return false;
     }
 
     fsn.addCommittedBlocksToPending(pendingFile);
-
+    // 完成INode写操作，将INode转换为正常状态
     fsn.finalizeINodeFileUnderConstruction(src, pendingFile,
         Snapshot.CURRENT_STATE_ID, true);
     return true;
