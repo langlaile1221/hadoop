@@ -70,7 +70,6 @@ public class FSXAttrBaseTest {
 
   protected static MiniDFSCluster dfsCluster;
   protected static Configuration conf;
-  private static int pathCount = 0;
   protected static Path path;
   protected static Path filePath;
   protected static Path rawPath;

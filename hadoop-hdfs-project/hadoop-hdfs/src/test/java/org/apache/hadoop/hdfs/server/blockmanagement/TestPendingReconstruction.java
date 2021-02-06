@@ -556,7 +556,8 @@ public class TestPendingReconstruction {
         @Override
         public Boolean get() {
           MetricsRecordBuilder rb = getMetrics("NameNodeActivity");
-          return getLongCounter("SuccessfulReReplications", rb) == 1 &&
+          return getLongCounter("BlockToBeInvalidated", rb) == 0 &&
+              getLongCounter("SuccessfulReReplications", rb) == 1 &&
               getLongCounter("NumTimesReReplicationNotScheduled", rb) == 1 &&
               getLongCounter("TimeoutReReplications", rb) == 1;
         }

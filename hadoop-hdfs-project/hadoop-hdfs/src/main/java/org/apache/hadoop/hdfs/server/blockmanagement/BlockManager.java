@@ -2259,7 +2259,7 @@ public class BlockManager implements BlockStatsMXBean {
         // reduce the number of replicas needed, then no use continuing.
         return false;
       }
-      // mark that the reconstruction work is to replicate internal block to a
+      // mark that the reconstruction work is to replicate internal block to a∂
       // new rack.
       rw.setNotEnoughRack();
     }
@@ -3538,10 +3538,12 @@ public class BlockManager implements BlockStatsMXBean {
     int numCurrentReplica = numLiveReplicas + pendingNum;
     int numUsableReplicas = num.liveReplicas() +
         num.decommissioning() + num.liveEnteringMaintenanceReplicas();
-
+    
     if(storedBlock.getBlockUCState() == BlockUCState.COMMITTED &&
         hasMinStorage(storedBlock, numUsableReplicas)) {
+      // 待重建的数据
       addExpectedReplicasToPending(storedBlock);
+      // Convert a specified block of the file to a complete block.
       completeBlock(storedBlock, null, false);
     } else if (storedBlock.isComplete() && result == AddBlockResult.ADDED) {
       // check whether safe replication is reached for the block
@@ -5223,6 +5225,7 @@ public class BlockManager implements BlockStatsMXBean {
    * @return true when node is HAState.Active and not in the very first safemode
    */
   public boolean isPopulatingReplQueues() {
+    // active namenode 返回true
     if (!shouldPopulateReplQueues()) {
       return false;
     }
