@@ -730,10 +730,10 @@ public class NameNode extends ReconfigurableBase implements
 
     UserGroupInformation.setConfiguration(conf);
     loginAsNameNodeUser(conf);
-    //初始化指标
+    //初始化指标metric
     NameNode.initMetrics(conf, this.getRole());
     StartupProgressMetrics.register(startupProgress);
-
+    // 启动JvmPauseMonitor等，反向监控JVM
     pauseMonitor = new JvmPauseMonitor();
     pauseMonitor.init(conf);
     pauseMonitor.start();
@@ -758,8 +758,9 @@ public class NameNode extends ReconfigurableBase implements
     if (NamenodeRole.NAMENODE == role) {
       startHttpServer(conf);
     }
-
+    // 从`${dfs.namenode.name.dir}`目录加载fsimage与editlog，初始化FsNamesystem、FsDirectory、LeaseManager等
     loadNamesystem(conf);
+    
     startAliasMapServerIfNecessary(conf);
     //创建rpcServer
     rpcServer = createRpcServer(conf);
@@ -781,7 +782,7 @@ public class NameNode extends ReconfigurableBase implements
         httpServer.setAliasMap(levelDBAliasMapServer.getAliasMap());
       }
     }
-
+    
     startCommonServices(conf);
     startMetricsLogger(conf);
   }
@@ -861,9 +862,11 @@ public class NameNode extends ReconfigurableBase implements
 
   /** Start the services common to active and standby states */
   private void startCommonServices(Configuration conf) throws IOException {
+    // 创建NameNodeResourceChecker、激活BlockManager等
     namesystem.startCommonServices(conf, haContext);
     registerNNSMXBean();
     if (NamenodeRole.NAMENODE != role) {
+      // 角色非NamenodeRole.NAMENODE 的在此处启动HttpServer
       startHttpServer(conf);
       httpServer.setNameNodeAddress(getNameNodeAddress());
       httpServer.setFSImage(getFSImage());
@@ -871,8 +874,10 @@ public class NameNode extends ReconfigurableBase implements
         httpServer.setAliasMap(levelDBAliasMapServer.getAliasMap());
       }
     }
+    // 启动RPCServer
     rpcServer.start();
     try {
+      // 启动各自插件
       plugins = conf.getInstances(DFS_NAMENODE_PLUGINS_KEY,
           ServicePlugin.class);
     } catch (RuntimeException e) {
@@ -991,7 +996,8 @@ public class NameNode extends ReconfigurableBase implements
     this(conf, NamenodeRole.NAMENODE);
   }
 
-  protected NameNode(Configuration conf, NamenodeRole role)
+  protected 
+  NameNode(Configuration conf, NamenodeRole role)
       throws IOException {
     super(conf);
     this.tracer = new Tracer.Builder("NameNode").
@@ -1018,6 +1024,7 @@ public class NameNode extends ReconfigurableBase implements
       //初始化nodenode，创建NameNOdeRpcServer
       initialize(getConf());
       state.prepareToEnterState(haContext);
+      // HA相关
       try {
         haContext.writeLock();
         state.enterState(haContext);
@@ -1067,6 +1074,7 @@ public class NameNode extends ReconfigurableBase implements
    */
   public void join() {
     try {
+      // 等待RPCServer关闭，其他守护进程会自动关闭
       rpcServer.join();
     } catch (InterruptedException ie) {
       LOG.info("Caught interrupted exception", ie);
@@ -1705,6 +1713,7 @@ public class NameNode extends ReconfigurableBase implements
     GenericOptionsParser hParser = new GenericOptionsParser(conf, argv);
     argv = hParser.getRemainingArgs();
     // Parse the rest, NN specific args.
+    // 解析启动选项
     StartupOption startOpt = parseArguments(argv);
     if (startOpt == null) {
       printUsage(System.err);
@@ -1757,6 +1766,7 @@ public class NameNode extends ReconfigurableBase implements
       terminate(0);
       return null;
     default:
+      // 正常启动的流程，初始化metric系统
       DefaultMetricsSystem.initialize("NameNode");
       return new NameNode(conf);
     }
@@ -1825,6 +1835,7 @@ public class NameNode extends ReconfigurableBase implements
       StringUtils.startupShutdownMessage(NameNode.class, argv, LOG);
       //创建namenode
       NameNode namenode = createNameNode(argv, null);
+      // 等待namenode关闭
       if (namenode != null) {
         namenode.join();
       }

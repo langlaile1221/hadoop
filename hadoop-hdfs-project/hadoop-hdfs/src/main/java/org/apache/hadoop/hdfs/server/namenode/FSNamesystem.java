@@ -946,6 +946,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
       this.standbyShouldCheckpoint = conf.getBoolean(
           DFS_HA_STANDBY_CHECKPOINTS_KEY, DFS_HA_STANDBY_CHECKPOINTS_DEFAULT);
       // # edit autoroll threshold is a multiple of the checkpoint threshold 
+      // 事务数量阈值
       this.editLogRollerThreshold = (long)
           (conf.getFloat(
               DFS_NAMENODE_EDIT_LOG_AUTOROLL_MULTIPLIER_THRESHOLD,
@@ -953,10 +954,11 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
           conf.getLong(
               DFS_NAMENODE_CHECKPOINT_TXNS_KEY,
               DFS_NAMENODE_CHECKPOINT_TXNS_DEFAULT));
+      // 以该配置项为间隔周期，定时检查当前事务数是否超过日志重置阈值，默认为5min。
       this.editLogRollerInterval = conf.getInt(
           DFS_NAMENODE_EDIT_LOG_AUTOROLL_CHECK_INTERVAL_MS,
           DFS_NAMENODE_EDIT_LOG_AUTOROLL_CHECK_INTERVAL_MS_DEFAULT);
-
+      // 
       this.lazyPersistFileScrubIntervalSec = conf.getInt(
           DFS_NAMENODE_LAZY_PERSIST_FILE_SCRUB_INTERVAL_SEC,
           DFS_NAMENODE_LAZY_PERSIST_FILE_SCRUB_INTERVAL_SEC_DEFAULT);
@@ -1288,14 +1290,17 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
     writeLock();
     this.haContext = haContext;
     try {
+      // 创建NameNodeResoutceChecker，并立即检查一次
       nnResourceChecker = new NameNodeResourceChecker(conf);
       checkAvailableResources();
       assert !blockManager.isPopulatingReplQueues();
+      // 设置启动信息
       StartupProgress prog = NameNode.getStartupProgress();
       prog.beginPhase(Phase.SAFEMODE);
       long completeBlocksTotal = getCompleteBlocksTotal();
       prog.setTotal(Phase.SAFEMODE, STEP_AWAITING_REPORTED_BLOCKS,
           completeBlocksTotal);
+      // 激活BlockManager
       blockManager.activate(conf, completeBlocksTotal);
     } finally {
       writeUnlock("startCommonServices");
